@@ -63,7 +63,7 @@ export default function MessageAnalyzer() {
         rows={6}
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        className="w-full text-[1.1rem] rounded-xl border border-gray-300 p-3 resize-y"
+        className="w-full text-[1.1rem] rounded-xl border border-gray-300 p-3 resize-y text-gray-900 bg-white"
         placeholder="Paste email, text message, or link here..."
       />
 

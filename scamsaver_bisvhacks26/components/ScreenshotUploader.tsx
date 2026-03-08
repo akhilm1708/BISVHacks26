@@ -114,7 +114,7 @@ export default function ScreenshotUploader() {
       {extractedText != null && (
         <div className="mt-6">
           <label className="font-bold block mb-2">Text found in image:</label>
-          <div className="max-h-36 overflow-y-auto bg-gray-50 rounded-lg p-3 font-mono text-sm">
+          <div className="max-h-36 overflow-y-auto bg-gray-50 rounded-lg p-3 font-mono text-sm text-gray-900">
             {extractedText || '(No text extracted)'}
           </div>
         </div>

@@ -117,7 +117,7 @@ export default function AudioUploader() {
       {transcript != null && (
         <div className="mt-6">
           <label className="font-bold block mb-2">📝 Transcript:</label>
-          <div className="max-h-44 overflow-y-auto bg-gray-50 rounded-lg p-3 text-sm">
+          <div className="max-h-44 overflow-y-auto bg-gray-50 rounded-lg p-3 text-sm text-gray-900">
             {transcript || '(No transcript)'}
           </div>
         </div>
