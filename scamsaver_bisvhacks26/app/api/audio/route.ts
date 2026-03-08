@@ -37,6 +37,11 @@ export async function POST(request: Request) {
 
     if (!transcribeRes.ok) {
       const err = await transcribeRes.text();
+      // Live call sends small chunks; Deepgram often returns 400 for corrupt/unsupported.
+      // Return success with empty content so the client keeps the interval running and transcript growing.
+      if (transcribeRes.status === 400) {
+        return NextResponse.json({ transcript: "", analysis: null });
+      }
       return NextResponse.json(
         { error: "Transcription failed: " + err },
         { status: 500 }
@@ -54,10 +59,8 @@ export async function POST(request: Request) {
       transcribeData.results?.channels?.[0]?.alternatives?.[0]?.transcript ?? "";
 
     if (!transcript || transcript.trim() === "") {
-      return NextResponse.json(
-        { error: "Could not transcribe audio" },
-        { status: 422 }
-      );
+      // Empty transcript (silence/short chunk) — return success so live call keeps going.
+      return NextResponse.json({ transcript: "", analysis: null });
     }
     const analysis = await analyzeScam(transcript.trim());
     return NextResponse.json({
