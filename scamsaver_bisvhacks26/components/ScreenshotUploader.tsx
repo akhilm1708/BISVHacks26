@@ -3,12 +3,14 @@
 import { useState, useRef } from 'react'
 import RiskMeter from '@/components/RiskMeter'
 
+type SuspiciousPhrase = { phrase: string; reason: string }
+
 type ScamResult = {
   scam_probability: number
   risk_level: string
   scam_type: string
   reason: string
-  suspicious_phrases: string[]
+  suspicious_phrases: SuspiciousPhrase[]
   recommended_action: string
 }
 
@@ -130,18 +132,20 @@ export default function ScreenshotUploader() {
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-5 mt-4">
-            <h3 className="font-bold text-[1.1rem] mb-2">Suspicious phrases found</h3>
+            <h3 className="font-bold text-[1.1rem] mb-2 text-gray-900">Suspicious phrases found</h3>
             {result.suspicious_phrases.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
-                {result.suspicious_phrases.map((phrase) => (
-                  <span
-                    key={phrase}
-                    className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-sm"
-                  >
-                    {phrase}
-                  </span>
+              <ul className="space-y-3">
+                {result.suspicious_phrases.map((item, i) => (
+                  <li key={i} className="flex flex-col gap-1">
+                    <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-sm w-fit">
+                      {typeof item === 'string' ? item : item.phrase}
+                    </span>
+                    {typeof item === 'object' && item.reason && (
+                      <span className="text-sm text-gray-600 pl-1">{item.reason}</span>
+                    )}
+                  </li>
                 ))}
-              </div>
+              </ul>
             ) : (
               <p className="text-gray-500">No specific phrases flagged.</p>
             )}

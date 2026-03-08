@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from 'react'
 import RiskMeter from '@/components/RiskMeter'
 
+type SuspiciousPhrase = { phrase: string; reason: string }
+
 type ScamResult = {
   scam_probability: number
   risk_level: string
   scam_type: string
   reason: string
-  suspicious_phrases: string[]
+  suspicious_phrases: SuspiciousPhrase[]
   recommended_action: string
 }
 
@@ -50,6 +52,7 @@ function dedupeRepeatedPhrases(text: string): string {
 export default function LiveCallListener() {
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')
+  const [interimTranscript, setInterimTranscript] = useState('')
   const [result, setResult] = useState<ScamResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -59,9 +62,10 @@ export default function LiveCallListener() {
   const transcriptRef = useRef('')
   const riskIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // Keep ref in sync with full transcript (final + interim) so 5s risk interval sees current text during the call
   useEffect(() => {
-    transcriptRef.current = transcript
-  }, [transcript])
+    transcriptRef.current = [transcript, interimTranscript].filter(Boolean).join(' ').trim()
+  }, [transcript, interimTranscript])
 
   function startListening() {
     if (!SpeechRecognitionAPI) {
@@ -71,6 +75,7 @@ export default function LiveCallListener() {
 
     setError(null)
     setTranscript('')
+    setInterimTranscript('')
     setResult(null)
 
     const recognition = new SpeechRecognitionAPI()
@@ -79,20 +84,26 @@ export default function LiveCallListener() {
     recognition.lang = 'en-US'
 
     recognition.onresult = (event: { resultIndex: number; results: { length: number; [i: number]: { isFinal: boolean; 0: { transcript: string } } } }) => {
-      // Only append final results; interim results repeat and inflate the transcript (and scam score)
-      let toAppend = ''
+      let finalAppend = ''
+      let interim = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const r = event.results[i] as { isFinal: boolean; 0: { transcript: string } }
-        if (r.isFinal && r[0].transcript.trim()) {
-          toAppend += (toAppend ? ' ' : '') + r[0].transcript.trim()
+        const text = r[0].transcript.trim()
+        if (!text) continue
+        if (r.isFinal) {
+          finalAppend += (finalAppend ? ' ' : '') + text
+        } else {
+          interim = text
         }
       }
-      if (toAppend) {
+      if (finalAppend) {
         setTranscript((prev) => {
-          const next = (prev ? prev + ' ' + toAppend : toAppend).trim()
+          const next = (prev ? prev + ' ' + finalAppend : finalAppend).trim()
           return dedupeRepeatedPhrases(next)
         })
+        setInterimTranscript('')
       }
+      if (interim) setInterimTranscript(interim)
     }
 
     recognition.onerror = (event: { error: string }) => {
@@ -126,7 +137,6 @@ export default function LiveCallListener() {
     riskIntervalRef.current = setInterval(async () => {
       let text = transcriptRef.current.trim()
       if (!text) return
-      // Remove consecutive repeated phrases so repetition doesn't inflate scam score
       text = dedupeRepeatedPhrases(text)
       if (!text.trim()) return
       try {
@@ -159,6 +169,7 @@ export default function LiveCallListener() {
       riskIntervalRef.current = null
     }
     isListeningRef.current = false
+    setInterimTranscript('')
     setIsListening(false)
   }
 
@@ -166,7 +177,7 @@ export default function LiveCallListener() {
     const el = transcriptBoxRef.current
     if (!el) return
     el.scrollTop = el.scrollHeight
-  }, [transcript])
+  }, [transcript, interimTranscript])
 
   useEffect(() => {
     return () => {
@@ -216,8 +227,8 @@ export default function LiveCallListener() {
             ref={transcriptBoxRef}
             className="max-h-48 overflow-y-auto bg-gray-50 rounded-xl p-4 text-sm text-gray-900"
           >
-            {transcript.trim().length > 0 ? (
-              transcript.trim()
+            {(transcript.trim() || interimTranscript.trim()) ? (
+              [transcript.trim(), interimTranscript.trim()].filter(Boolean).join(' ')
             ) : (
               <span className="text-gray-500 italic">Waiting for speech...</span>
             )}
@@ -237,16 +248,18 @@ export default function LiveCallListener() {
           <div className="bg-white rounded-xl border border-gray-200 p-5 mt-4">
             <h3 className="font-bold text-[1.1rem] mb-2 text-gray-900">Suspicious phrases found</h3>
             {result.suspicious_phrases.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
-                {result.suspicious_phrases.map((phrase) => (
-                  <span
-                    key={phrase}
-                    className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-sm"
-                  >
-                    {phrase}
-                  </span>
+              <ul className="space-y-3">
+                {result.suspicious_phrases.map((item, i) => (
+                  <li key={i} className="flex flex-col gap-1">
+                    <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-sm w-fit">
+                      {typeof item === 'string' ? item : item.phrase}
+                    </span>
+                    {typeof item === 'object' && item.reason && (
+                      <span className="text-sm text-gray-600 pl-1">{item.reason}</span>
+                    )}
+                  </li>
                 ))}
-              </div>
+              </ul>
             ) : (
               <p className="text-gray-500">No specific phrases flagged.</p>
             )}
