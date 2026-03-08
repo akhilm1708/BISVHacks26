@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { analyzeScam } from "@/lib/featherless";
+import { DeepgramClient } from "@deepgram/sdk";
 
 export async function POST(request: Request) {
   try {
@@ -12,29 +13,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const transcribeForm = new FormData();
-    transcribeForm.append("file", audio);
-    transcribeForm.append("model_id", "scribe_v1");
+    const deepgram = new DeepgramClient({
+      apiKey: process.env.DEEPGRAM_API_KEY!,
+    });
+    const buffer = Buffer.from(await audio.arrayBuffer());
 
-    const transcribeRes = await fetch(
-      "https://api.elevenlabs.io/v1/speech-to-text",
-      {
-        method: "POST",
-        headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY! },
-        body: transcribeForm,
-      }
-    );
+    const response = await deepgram.listen.v1.media.transcribeFile(buffer, {
+      model: "nova-2",
+      smart_format: true,
+    });
 
-    if (!transcribeRes.ok) {
-      const err = await transcribeRes.text();
-      return NextResponse.json(
-        { error: "Transcription failed: " + err },
-        { status: 500 }
-      );
-    }
-
-    const transcribeData = (await transcribeRes.json()) as { text?: string };
-    const transcript: string = transcribeData.text ?? "";
+    const transcript =
+      response.results?.channels?.[0]?.alternatives?.[0]?.transcript;
 
     if (!transcript || transcript.trim() === "") {
       return NextResponse.json(
@@ -47,7 +37,7 @@ export async function POST(request: Request) {
       transcript: transcript.trim(),
       analysis,
     });
-  } catch (err) {
+  } catch (err: unknown) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Unknown error" },
       { status: 500 }
