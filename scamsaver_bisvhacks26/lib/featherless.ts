@@ -74,7 +74,7 @@ export async function analyzeScam(text: string): Promise<ScamAnalysis> {
           : { phrase: String(item), reason: "Flagged as suspicious." }
       );
     }
-    return parsed as ScamAnalysis;
+    return parsed as unknown as ScamAnalysis;
   } catch (err) {
     if (err instanceof Error) {
       if (err.message.startsWith("Featherless API error:")) throw err;
