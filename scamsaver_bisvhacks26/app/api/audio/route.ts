@@ -24,31 +24,19 @@ export async function POST(request: Request) {
     url.searchParams.set("model", "nova-2");
     url.searchParams.set("smart_format", "true");
     url.searchParams.set("punctuate", "true");
-    url.searchParams.set("encoding", "opus");       // ← add this
-    url.searchParams.set("container", "webm");
 
     const audioBytes = Buffer.from(await audio.arrayBuffer());
     const transcribeRes = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Token ${deepgramKey}`,
-        "Content-Type": "audio/webm;codecs=opus",   // ← replace audio.type,
+        "Content-Type": audio.type || "application/octet-stream",
       },
       body: audioBytes,
     });
 
     if (!transcribeRes.ok) {
       const err = await transcribeRes.text();
-
-      // If Deepgram couldn't process this particular chunk (e.g. tiny or corrupt),
-      // treat it as a no-op so live streaming can continue smoothly.
-      if (transcribeRes.status === 400) {
-        return NextResponse.json({
-          transcript: "",
-          analysis: null,
-        });
-      }
-
       return NextResponse.json(
         { error: "Transcription failed: " + err },
         { status: 500 }
