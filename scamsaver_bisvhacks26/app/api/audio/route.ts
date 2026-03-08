@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { analyzeScam } from "@/lib/featherless";
-import { DeepgramClient } from "@deepgram/sdk";
 
 export async function POST(request: Request) {
   try {
@@ -13,18 +12,46 @@ export async function POST(request: Request) {
       );
     }
 
-    const deepgram = new DeepgramClient({
-      apiKey: process.env.DEEPGRAM_API_KEY!,
-    });
-    const buffer = Buffer.from(await audio.arrayBuffer());
+    const deepgramKey = process.env.DEEPGRAM_API_KEY;
+    if (!deepgramKey) {
+      return NextResponse.json(
+        { error: "Missing DEEPGRAM_API_KEY" },
+        { status: 500 }
+      );
+    }
 
-    const response = await deepgram.listen.v1.media.transcribeFile(buffer, {
-      model: "nova-2",
-      smart_format: true,
+    const url = new URL("https://api.deepgram.com/v1/listen");
+    url.searchParams.set("model", "nova-2");
+    url.searchParams.set("smart_format", "true");
+    url.searchParams.set("punctuate", "true");
+
+    const audioBytes = Buffer.from(await audio.arrayBuffer());
+    const transcribeRes = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${deepgramKey}`,
+        "Content-Type": audio.type || "application/octet-stream",
+      },
+      body: audioBytes,
     });
 
-    const transcript =
-      response.results?.channels?.[0]?.alternatives?.[0]?.transcript;
+    if (!transcribeRes.ok) {
+      const err = await transcribeRes.text();
+      return NextResponse.json(
+        { error: "Transcription failed: " + err },
+        { status: 500 }
+      );
+    }
+
+    const transcribeData = (await transcribeRes.json()) as {
+      results?: {
+        channels?: Array<{
+          alternatives?: Array<{ transcript?: string }>;
+        }>;
+      };
+    };
+    const transcript: string =
+      transcribeData.results?.channels?.[0]?.alternatives?.[0]?.transcript ?? "";
 
     if (!transcript || transcript.trim() === "") {
       return NextResponse.json(
@@ -37,7 +64,7 @@ export async function POST(request: Request) {
       transcript: transcript.trim(),
       analysis,
     });
-  } catch (err: unknown) {
+  } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Unknown error" },
       { status: 500 }
