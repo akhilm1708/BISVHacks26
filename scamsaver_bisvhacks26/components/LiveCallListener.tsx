@@ -194,80 +194,80 @@ export default function LiveCallListener() {
   }, [])
 
   return (
-    <div className="max-w-[680px] mx-auto p-6 flex flex-col">
+    <div className="max-w-2xl mx-auto px-0 py-2 flex flex-col">
       {!isListening ? (
         <button
           type="button"
           onClick={startListening}
-          className="w-full py-4 text-xl font-bold bg-green-600 hover:bg-green-700 text-white rounded-2xl"
+          className="w-full py-5 sm:py-6 text-lg font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-sm hover:shadow-md transition-all"
         >
           ▶ Start Call Protection
         </button>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <button
             type="button"
             onClick={stopListening}
-            className="w-full py-4 text-xl font-bold bg-red-600 hover:bg-red-700 text-white rounded-2xl"
+            className="w-full py-5 sm:py-6 text-lg font-bold bg-slate-900 hover:bg-black text-white rounded-2xl shadow-sm hover:shadow-md transition-all"
           >
             ⏹ Stop Listening
           </button>
 
-          <div className="flex items-center gap-2 text-gray-700">
-            <span className="animate-pulse w-3 h-3 rounded-full bg-red-500" />
-            <span>🎤 Listening to call...</span>
+          <div className="flex items-center gap-2.5 text-blue-600 text-base font-medium mt-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+            🎤 Listening to call...
           </div>
         </div>
       )}
 
       {(isListening || transcript.length > 0) && (
         <div className="mt-6">
-          <label className="font-bold block mb-2 text-gray-900">Live Transcript:</label>
+          <label className="text-black font-semibold text-base sm:text-lg mb-3 block">Live Transcript:</label>
           <div
             ref={transcriptBoxRef}
-            className="max-h-48 overflow-y-auto bg-gray-50 rounded-xl p-4 text-sm text-gray-900"
+            className="max-h-52 overflow-y-auto bg-slate-50 border border-slate-100 rounded-xl p-4 sm:p-5 text-base text-gray-600 leading-relaxed"
           >
             {(transcript.trim() || interimTranscript.trim()) ? (
               [transcript.trim(), interimTranscript.trim()].filter(Boolean).join(' ')
             ) : (
-              <span className="text-gray-500 italic">Waiting for speech...</span>
+              <span className="text-gray-400 italic text-base">Waiting for speech...</span>
             )}
           </div>
         </div>
       )}
 
       {result && (
-        <div className="mt-6">
+        <div className="mt-10 space-y-6">
           <RiskMeter probability={result.scam_probability} />
 
-          <div className="bg-white rounded-xl border border-gray-200 p-5 mt-4">
-            <h3 className="font-bold text-[1.1rem] mb-2 text-gray-900">Why this might be a scam</h3>
-            <p className="text-gray-700">{result.reason}</p>
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 shadow-sm">
+            <h3 className="text-black font-semibold text-sm uppercase tracking-wide text-slate-700 mb-3">Why this might be a scam</h3>
+            <p className="text-gray-600 text-base leading-relaxed max-w-prose">{result.reason}</p>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-5 mt-4">
-            <h3 className="font-bold text-[1.1rem] mb-2 text-gray-900">Suspicious phrases found</h3>
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 shadow-sm">
+            <h3 className="text-black font-semibold text-sm uppercase tracking-wide text-slate-700 mb-3">Suspicious phrases found</h3>
             {result.suspicious_phrases.length > 0 ? (
               <ul className="space-y-3">
                 {result.suspicious_phrases.map((item, i) => (
-                  <li key={i} className="flex flex-col gap-1">
-                    <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-sm w-fit">
+                  <li key={i} className="flex flex-col gap-1.5">
+                    <span className="bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-3.5 py-1 text-sm font-medium w-fit">
                       {typeof item === 'string' ? item : item.phrase}
                     </span>
                     {typeof item === 'object' && item.reason && (
-                      <span className="text-sm text-gray-600 pl-1">{item.reason}</span>
+                      <span className="text-gray-600 text-sm sm:text-base pl-0.5 leading-relaxed">{item.reason}</span>
                     )}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500">No specific phrases flagged.</p>
+              <p className="text-gray-500 text-base">No specific phrases flagged.</p>
             )}
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-5 mt-4">
-            <h3 className="font-bold text-[1.1rem] mb-2 text-gray-900">What you should do</h3>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-gray-800">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 shadow-sm">
+            <h3 className="text-black font-semibold text-sm uppercase tracking-wide text-slate-700 mb-3">What you should do</h3>
+            <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-5 text-blue-900 text-base leading-relaxed">
               {result.recommended_action}
             </div>
           </div>
@@ -275,17 +275,14 @@ export default function LiveCallListener() {
       )}
 
       {result && result.scam_probability > 75 && (
-        <div
-          className="w-full bg-red-600 text-white rounded-2xl p-6 text-center mt-4"
-          style={{ fontSize: '1.2rem', fontWeight: 700 }}
-        >
+        <div className="w-full bg-red-600 text-white rounded-2xl p-6 sm:p-8 text-center mt-8 font-bold text-lg sm:text-xl leading-snug">
           <div>🚨 WARNING: This call shows signs of a scam.</div>
-          <div>Do NOT share personal or financial information.</div>
+          <div className="mt-1">Do NOT share personal or financial information.</div>
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-300 rounded-xl p-4 mt-4 text-red-800">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-5 mt-6 text-red-700 text-base leading-relaxed">
           {error}
         </div>
       )}
