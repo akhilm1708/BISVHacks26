@@ -10,7 +10,7 @@ Built at **BISVHacks 2026** by Akhil & Isaac.
 
 ## 🚨 The Problem
 
-Americans lost over **$10 billion to scams in 2023 alone.** Suspicious texts, locked account alerts, IRS calls — most people have no way to know in the moment whether something is real or not. We got one of these calls the morning of the hackathon. That's why we built ScamSaver.
+Americans lost over **$12.5 billion to scams in 2023 alone.** Suspicious texts, locked account alerts, IRS calls — most people have no way to know in the moment whether something is real or not. We got one of these calls the morning of the hackathon. That's why we built ScamSaver.
 
 ---
 
