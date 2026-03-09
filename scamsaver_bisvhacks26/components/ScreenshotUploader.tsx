@@ -47,12 +47,26 @@ export default function ScreenshotUploader() {
       formData.append('image', file)
       const res = await fetch('/api/screenshot', { method: 'POST', body: formData })
       setLoadingMsg('Analyzing for scams...')
-      const data = await res.json()
+      const contentType = res.headers.get('content-type') ?? ''
+      let data: { error?: string; extracted_text?: string; analysis?: ScamResult }
+      const raw = await res.text()
+      if (contentType.includes('application/json')) {
+        try {
+          data = JSON.parse(raw)
+        } catch {
+          throw new Error('Invalid response from server. Please try again.')
+        }
+      } else {
+        throw new Error(raw || 'Scan failed. Please try again or use a clearer image.')
+      }
       if (!res.ok) throw new Error(data.error ?? 'Scan failed')
-      setExtractedText(data.extracted_text)
-      setResult(data.analysis)
+      setExtractedText(data.extracted_text ?? null)
+      setResult(data.analysis ?? null)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      const message = err instanceof Error ? err.message : 'Something went wrong'
+      setError(message.startsWith('Unexpected token') || message.includes('is not valid JSON')
+        ? 'Scan failed. The image could not be read or analyzed. Please try a clearer screenshot or a different image.'
+        : message)
     } finally {
       setLoading(false)
     }
