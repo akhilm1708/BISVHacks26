@@ -31,8 +31,8 @@ export default function Home() {
                 color: '#0f0f1a',
               }}
             >
-              <span className="block">Hang up on scams.</span>
-              <span className="block text-blue-600">Before they hang you out to dry.</span>
+              <span className="block">Think before you act.</span>
+              <span className="block text-blue-600">We&apos;ll think with you.</span>
             </h1>
             <p
               className="text-[1.15rem] font-normal mt-6 mx-auto max-w-[520px]"
