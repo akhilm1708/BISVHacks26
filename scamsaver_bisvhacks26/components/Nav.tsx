@@ -19,9 +19,10 @@ export default function Nav() {
       <div className="max-w-[1100px] mx-auto px-5 sm:px-8 h-16 sm:h-[4.25rem] flex items-center justify-between">
         <Link
           href="/"
-          className="font-extrabold text-black text-lg sm:text-xl tracking-tight hover:opacity-90 transition-opacity"
+          className="font-extrabold text-black text-lg sm:text-xl tracking-tight hover:opacity-90 transition-opacity flex items-center gap-2"
         >
-          🛡️ ScamSaver
+          <img src="/scamsaver-logo.png" alt="" className="inline-block w-auto" style={{ height: '1em' }} />
+          ScamSaver
         </Link>
         <div className="flex items-center gap-5 sm:gap-8">
           {links.filter((l) => l.href !== '/').map(({ href, label }) => {

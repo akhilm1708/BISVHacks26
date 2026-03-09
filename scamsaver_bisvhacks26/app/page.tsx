@@ -20,8 +20,9 @@ export default function Home() {
         <main className="max-w-[1100px] mx-auto px-8">
           {/* Hero: full viewport height, centered */}
           <section className="min-h-screen flex flex-col items-center justify-center text-center">
-            <span className="rounded-full bg-blue-50 border border-blue-200 text-blue-600 text-sm font-semibold px-4 py-1 inline-block mb-6">
-              🛡️ AI-Powered Scam Protection
+            <span className="rounded-full bg-blue-50 border border-blue-200 text-blue-600 text-sm font-semibold px-4 py-1 inline-flex items-center gap-1.5 mb-6">
+              <img src="/scamsaver-logo.png" alt="" className="inline-block w-auto" style={{ height: '1em' }} />
+              AI-Powered Scam Protection
             </span>
             <h1
               className="font-extrabold leading-[1.1] mx-auto max-w-[14ch] sm:max-w-none"

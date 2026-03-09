@@ -14,8 +14,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ScamSaver — AI Scam Protection for Seniors",
+  title: "ScamSaver",
   description: "Detect scams in messages, screenshots, and phone calls using AI.",
+  icons: {
+    icon: "/scamsaver-logo.png",
+  },
 };
 
 export default function RootLayout({
@@ -46,10 +49,11 @@ export default function RootLayout({
           <div className="max-w-[1100px] mx-auto flex items-center justify-between h-[72px] px-8">
             <Link
               href="/"
-              className="font-extrabold text-[1.4rem]"
+              className="font-extrabold text-[1.4rem] flex items-center gap-2"
               style={{ color: '#0f0f1a' }}
             >
-              🛡️ ScamSaver
+              <img src="/scamsaver-logo.png" alt="" className="inline-block w-auto align-middle" style={{ height: '1em' }} />
+              ScamSaver
             </Link>
             <div className="hidden md:flex items-center gap-8">
               <Link

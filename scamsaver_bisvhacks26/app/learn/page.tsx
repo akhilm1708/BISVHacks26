@@ -1,4 +1,3 @@
-import FlashcardViewer from '@/components/FlashcardViewer'
 import Link from 'next/link'
 
 export default function LearnPage() {
@@ -208,17 +207,6 @@ export default function LearnPage() {
               </p>
             </div>
           </div>
-        </section>
-
-        {/* Flashcards */}
-        <section className="mb-8">
-          <h2
-            className="font-bold mb-5"
-            style={{ fontSize: '1.25rem', color: '#0f0f1a' }}
-          >
-            Scam types flashcards
-          </h2>
-          <FlashcardViewer />
         </section>
       </div>
     </div>
