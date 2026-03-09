@@ -1,205 +1,175 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts'
 import RiskMeter from '@/components/RiskMeter'
-
-type SuspiciousPhrase = { phrase: string; reason: string }
 
 type ScamResult = {
   scam_probability: number
   risk_level: string
   scam_type: string
   reason: string
-  suspicious_phrases: SuspiciousPhrase[]
+  suspicious_phrases: string[]
   recommended_action: string
 }
 
-// Web Speech API (browser built-in; not in all TS libs)
-type SpeechRecognitionCtor = new () => {
-  start: () => void
-  stop: () => void
-  abort: () => void
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  onresult: ((e: { resultIndex: number; results: { length: number; [i: number]: { isFinal: boolean; [0]: { transcript: string } } } }) => void) | null
-  onerror: ((e: { error: string }) => void) | null
-  onend: (() => void) | null
+type RiskDataPoint = {
+  time: string
+  probability: number
 }
-const SpeechRecognitionAPI: SpeechRecognitionCtor | null =
-  typeof window !== 'undefined'
-    ? ((window as unknown as { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor }).SpeechRecognition ||
-        (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition) ||
-      null
-    : null
 
-/** Remove consecutive repeated phrases (e.g. "hello I am from Amazon hello I am from Amazon" → once) so score isn't inflated. */
-function dedupeRepeatedPhrases(text: string): string {
-  const words = text.split(/\s+/)
-  if (words.length < 4) return text
-  for (let len = Math.min(12, Math.floor(words.length / 2)); len >= 2; len--) {
-    for (let i = 0; i <= words.length - 2 * len; i++) {
-      const a = words.slice(i, i + len).join(' ')
-      const b = words.slice(i + len, i + 2 * len).join(' ')
-      if (a === b) {
-        return dedupeRepeatedPhrases([...words.slice(0, i + len), ...words.slice(i + 2 * len)].join(' '))
-      }
-    }
-  }
-  return text
+function getTimeLabel(startTimeRef: React.MutableRefObject<number>): string {
+  const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
+  const minutes = Math.floor(elapsed / 60)
+  const seconds = elapsed % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
 
 export default function LiveCallListener() {
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')
-  const [interimTranscript, setInterimTranscript] = useState('')
   const [result, setResult] = useState<ScamResult | null>(null)
+  const [riskHistory, setRiskHistory] = useState<RiskDataPoint[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [secondsElapsed, setSecondsElapsed] = useState(0)
 
-  const recognitionRef = useRef<InstanceType<NonNullable<typeof SpeechRecognitionAPI>> | null>(null)
-  const isListeningRef = useRef(false)
+  const recognitionRef = useRef<any>(null)
+  const analysisIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const transcriptBoxRef = useRef<HTMLDivElement | null>(null)
-  const transcriptRef = useRef('')
-  const riskIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const startTimeRef = useRef<number>(0)
+  const latestTranscriptRef = useRef<string>('')
 
-  // Keep ref in sync with full transcript (final + interim) so 5s risk interval sees current text during the call
-  useEffect(() => {
-    transcriptRef.current = [transcript, interimTranscript].filter(Boolean).join(' ').trim()
-  }, [transcript, interimTranscript])
-
-  function startListening() {
-    if (!SpeechRecognitionAPI) {
-      setError('Speech recognition is not supported in this browser. Try Chrome or Edge.')
+  async function startListening() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      setError('Speech recognition is not supported in this browser. Please use Chrome or Edge.')
       return
     }
 
-    setError(null)
-    setTranscript('')
-    setInterimTranscript('')
-    setResult(null)
+    const SpeechRecognitionAPI =
+      (typeof window !== 'undefined' &&
+        ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) ||
+      null
+    if (!SpeechRecognitionAPI) {
+      setError('Speech recognition is not supported in this browser. Please use Chrome or Edge.')
+      return
+    }
 
     const recognition = new SpeechRecognitionAPI()
+    recognitionRef.current = recognition
+
     recognition.continuous = true
     recognition.interimResults = true
     recognition.lang = 'en-US'
 
-    recognition.onresult = (event: { resultIndex: number; results: { length: number; [i: number]: { isFinal: boolean; 0: { transcript: string } } } }) => {
-      let finalAppend = ''
-      let interim = ''
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const r = event.results[i] as { isFinal: boolean; 0: { transcript: string } }
-        const text = r[0].transcript.trim()
-        if (!text) continue
-        if (r.isFinal) {
-          finalAppend += (finalAppend ? ' ' : '') + text
-        } else {
-          interim = text
-        }
+    recognition.onresult = (event: any) => {
+      let fullTranscript = ''
+      for (let i = 0; i < event.results.length; i++) {
+        fullTranscript += event.results[i][0].transcript
       }
-      if (finalAppend) {
-        setTranscript((prev) => {
-          const next = (prev ? prev + ' ' + finalAppend : finalAppend).trim()
-          return dedupeRepeatedPhrases(next)
-        })
-        setInterimTranscript('')
-      }
-      if (interim) setInterimTranscript(interim)
+      setTranscript(fullTranscript)
+      latestTranscriptRef.current = fullTranscript
     }
 
-    recognition.onerror = (event: { error: string }) => {
+    recognition.onerror = (event: any) => {
       if (event.error === 'not-allowed') {
         setError('Microphone access denied. Please allow microphone access in your browser settings.')
         stopListening()
       }
     }
 
-    recognition.onend = () => {
-      if (recognitionRef.current && isListeningRef.current) {
-        try {
-          recognitionRef.current.start()
-        } catch {
-          // ignore
-        }
-      }
-    }
+    recognition.start()
+    startTimeRef.current = Date.now()
+    setIsListening(true)
+    setError(null)
+    setRiskHistory([])
+    setSecondsElapsed(0)
+    setTranscript('')
+    latestTranscriptRef.current = ''
 
-    try {
-      recognition.start()
-      recognitionRef.current = recognition
-      isListeningRef.current = true
-      setIsListening(true)
-    } catch {
-      setError('Could not start speech recognition. Please allow microphone access.')
-      return
-    }
+    timerRef.current = setInterval(() => {
+      setSecondsElapsed((prev) => prev + 1)
+    }, 1000)
 
-    if (riskIntervalRef.current) clearInterval(riskIntervalRef.current)
-    riskIntervalRef.current = setInterval(async () => {
-      let text = transcriptRef.current.trim()
-      if (!text) return
-      text = dedupeRepeatedPhrases(text)
-      if (!text.trim()) return
+    analysisIntervalRef.current = setInterval(async () => {
+      const currentTranscript = latestTranscriptRef.current
+      if (!currentTranscript || currentTranscript.trim() === '') return
+
       try {
         const res = await fetch('/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text }),
+          body: JSON.stringify({ message: currentTranscript }),
         })
-        if (!res.ok) return
         const data = await res.json()
-        setResult(data as ScamResult)
-      } catch {
-        // ignore
+
+        if (data.scam_probability !== undefined) {
+          setResult(data as ScamResult)
+          setRiskHistory((prev) => [
+            ...prev,
+            {
+              time: getTimeLabel(startTimeRef),
+              probability: data.scam_probability,
+            },
+          ])
+        }
+      } catch (err) {
+        console.error('Analysis failed:', err)
       }
-    }, 5000)
+    }, 2000)
   }
 
   function stopListening() {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop()
-        recognitionRef.current.abort()
-      } catch {
-        // ignore
-      }
-      recognitionRef.current = null
+    recognitionRef.current?.stop()
+    recognitionRef.current = null
+    if (analysisIntervalRef.current) {
+      clearInterval(analysisIntervalRef.current)
+      analysisIntervalRef.current = null
     }
-    if (riskIntervalRef.current) {
-      clearInterval(riskIntervalRef.current)
-      riskIntervalRef.current = null
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
     }
-    isListeningRef.current = false
-    setInterimTranscript('')
     setIsListening(false)
   }
+
+  useEffect(() => {
+    return () => {
+      stopListening()
+    }
+  }, [])
 
   useEffect(() => {
     const el = transcriptBoxRef.current
     if (!el) return
     el.scrollTop = el.scrollHeight
-  }, [transcript, interimTranscript])
+  }, [transcript])
 
-  useEffect(() => {
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop()
-          recognitionRef.current.abort()
-        } catch {
-          // ignore
-        }
-      }
-      if (riskIntervalRef.current) clearInterval(riskIntervalRef.current)
-    }
-  }, [])
+  const elapsedLabel = `${Math.floor(secondsElapsed / 60)}:${(secondsElapsed % 60).toString().padStart(2, '0')}`
+  const showWarning =
+    (result?.scam_probability ?? 0) > 75 || riskHistory.some((p) => p.probability > 75)
+
+  const maxRisk = riskHistory.length > 1 ? Math.max(...riskHistory.map((p) => p.probability)) : null
+  const avgRisk =
+    riskHistory.length > 1
+      ? Math.round(riskHistory.reduce((a, b) => a + b.probability, 0) / riskHistory.length)
+      : null
+  const peakColor =
+    maxRisk != null
+      ? maxRisk >= 75
+        ? 'text-red-600'
+        : maxRisk >= 40
+          ? 'text-amber-600'
+          : 'text-green-600'
+      : ''
 
   return (
-    <div className="max-w-2xl mx-auto px-0 py-2 flex flex-col">
+    <div className="max-w-[720px] mx-auto px-6 py-6 flex flex-col">
       {!isListening ? (
         <button
           type="button"
           onClick={startListening}
-          className="w-full py-5 sm:py-6 text-lg font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow-sm hover:shadow-md transition-all"
+          className="w-full py-5 text-lg font-bold bg-green-600 hover:bg-green-700 text-white rounded-2xl shadow-sm transition-all"
         >
           ▶ Start Call Protection
         </button>
@@ -208,81 +178,134 @@ export default function LiveCallListener() {
           <button
             type="button"
             onClick={stopListening}
-            className="w-full py-5 sm:py-6 text-lg font-bold bg-slate-900 hover:bg-black text-white rounded-2xl shadow-sm hover:shadow-md transition-all"
+            className="w-full py-5 text-lg font-bold bg-red-600 hover:bg-red-700 text-white rounded-2xl shadow-sm transition-all"
           >
             ⏹ Stop Listening
           </button>
-
-          <div className="flex items-center gap-2.5 text-blue-600 text-base font-medium mt-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
-            🎤 Listening to call...
+          <div className="flex items-center gap-2 text-red-600 font-medium">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+            <span>🎤 Listening... {elapsedLabel}</span>
           </div>
+        </div>
+      )}
+
+      {result != null && (
+        <div className="transition-all duration-500 mt-6">
+          <RiskMeter probability={result.scam_probability} />
+        </div>
+      )}
+
+      {showWarning && (
+        <div className="w-full bg-red-600 text-white rounded-2xl p-6 text-center mt-4 text-[1.1rem] font-bold">
+          <div>🚨 WARNING: This call shows signs of a scam.</div>
+          <div>Do NOT share personal or financial information.</div>
+        </div>
+      )}
+
+      {riskHistory.length >= 1 && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 mt-4">
+          <div className="flex justify-between items-center mb-4">
+            <span className="font-bold text-base text-gray-900">📈 Risk Over Time</span>
+            <span className="text-[0.75rem] text-gray-500 flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-green-500" /> Safe
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500" /> Suspicious
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-red-500" /> High Risk
+              </span>
+            </span>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={riskHistory} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis
+                dataKey="time"
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                tickLine={false}
+              />
+              <YAxis
+                domain={[0, 100]}
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) => v + '%'}
+              />
+              <Tooltip
+                formatter={(value: unknown): [React.ReactNode, string] => [
+                  typeof value === 'number' ? value + '%' : String(value),
+                  'Scam Risk',
+                ]}
+                contentStyle={{
+                  borderRadius: '8px',
+                  border: '1px solid #e5e7eb',
+                  fontSize: '0.85rem',
+                }}
+              />
+              <ReferenceLine y={40} stroke="#fbbf24" strokeDasharray="4 4" strokeWidth={1} />
+              <ReferenceLine y={75} stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1} />
+              <Line
+                type="monotone"
+                dataKey="probability"
+                stroke="#2563eb"
+                strokeWidth={2.5}
+                dot={(props: { cx?: number; cy?: number; payload?: RiskDataPoint }) => {
+                  const { cx, cy, payload } = props
+                  if (cx == null || cy == null || !payload) return null
+                  const color =
+                    payload.probability >= 75
+                      ? '#ef4444'
+                      : payload.probability >= 40
+                        ? '#f59e0b'
+                        : '#22c55e'
+                  return (
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={4}
+                      fill={color}
+                      stroke="white"
+                      strokeWidth={2}
+                      key={cx}
+                    />
+                  )
+                }}
+                activeDot={{ r: 6 }}
+                isAnimationActive={true}
+                animationDuration={300}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+          {riskHistory.length > 1 && maxRisk != null && avgRisk != null && (
+            <p className="text-[0.85rem] text-gray-500 text-center mt-3">
+              Peak risk: <span className={`font-semibold ${peakColor}`}>{maxRisk}%</span>
+              {'  •  '}
+              Average risk: {avgRisk}%
+            </p>
+          )}
         </div>
       )}
 
       {(isListening || transcript.length > 0) && (
         <div className="mt-6">
-          <label className="text-black font-semibold text-base sm:text-lg mb-3 block">Live Transcript:</label>
+          <label className="font-bold block mb-2 text-gray-900">Live Transcript:</label>
           <div
             ref={transcriptBoxRef}
-            className="max-h-52 overflow-y-auto bg-slate-50 border border-slate-100 rounded-xl p-4 sm:p-5 text-base text-gray-600 leading-relaxed"
+            className="max-h-[160px] overflow-y-auto bg-gray-50 rounded-xl p-4 text-[0.9rem] text-gray-800"
           >
-            {(transcript.trim() || interimTranscript.trim()) ? (
-              [transcript.trim(), interimTranscript.trim()].filter(Boolean).join(' ')
+            {transcript.trim() ? (
+              transcript
             ) : (
-              <span className="text-gray-400 italic text-base">Waiting for speech...</span>
+              <span className="text-gray-400 italic">Waiting for speech...</span>
             )}
           </div>
-        </div>
-      )}
-
-      {result && (
-        <div className="mt-10 space-y-6">
-          <RiskMeter probability={result.scam_probability} />
-
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 shadow-sm">
-            <h3 className="text-black font-semibold text-sm uppercase tracking-wide text-slate-700 mb-3">Why this might be a scam</h3>
-            <p className="text-gray-600 text-base leading-relaxed max-w-prose">{result.reason}</p>
-          </div>
-
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 shadow-sm">
-            <h3 className="text-black font-semibold text-sm uppercase tracking-wide text-slate-700 mb-3">Suspicious phrases found</h3>
-            {result.suspicious_phrases.length > 0 ? (
-              <ul className="space-y-3">
-                {result.suspicious_phrases.map((item, i) => (
-                  <li key={i} className="flex flex-col gap-1.5">
-                    <span className="bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-3.5 py-1 text-sm font-medium w-fit">
-                      {typeof item === 'string' ? item : item.phrase}
-                    </span>
-                    {typeof item === 'object' && item.reason && (
-                      <span className="text-gray-600 text-sm sm:text-base pl-0.5 leading-relaxed">{item.reason}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-gray-500 text-base">No specific phrases flagged.</p>
-            )}
-          </div>
-
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 shadow-sm">
-            <h3 className="text-black font-semibold text-sm uppercase tracking-wide text-slate-700 mb-3">What you should do</h3>
-            <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-5 text-blue-900 text-base leading-relaxed">
-              {result.recommended_action}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {result && result.scam_probability > 75 && (
-        <div className="w-full bg-red-600 text-white rounded-2xl p-6 sm:p-8 text-center mt-8 font-bold text-lg sm:text-xl leading-snug">
-          <div>🚨 WARNING: This call shows signs of a scam.</div>
-          <div className="mt-1">Do NOT share personal or financial information.</div>
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-5 mt-6 text-red-700 text-base leading-relaxed">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4 text-red-700 text-sm">
           {error}
         </div>
       )}

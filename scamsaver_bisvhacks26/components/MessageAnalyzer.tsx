@@ -56,8 +56,8 @@ export default function MessageAnalyzer() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-0 py-2 flex flex-col">
-      <label className="text-black font-semibold text-base sm:text-lg mb-3 block">
+    <div className="max-w-[720px] mx-auto flex flex-col">
+      <label className="font-semibold text-base mb-3 block" style={{ color: '#0f0f1a' }}>
         Paste a suspicious message below
       </label>
 
@@ -65,7 +65,8 @@ export default function MessageAnalyzer() {
         rows={6}
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        className="w-full text-base sm:text-[1rem] text-black rounded-xl border border-slate-200 p-4 sm:p-5 resize-y bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 min-h-[8rem] leading-relaxed"
+        className="w-full bg-white border border-gray-200 rounded-xl p-4 text-base resize-y focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 placeholder:text-gray-400 leading-relaxed"
+        style={{ color: '#0f0f1a' }}
         placeholder="Paste email, text message, or link here..."
       />
 
@@ -75,7 +76,7 @@ export default function MessageAnalyzer() {
             key={label}
             type="button"
             onClick={() => setMessage(text)}
-            className="text-sm font-medium text-gray-500 hover:text-blue-600 border border-slate-200 hover:border-blue-300 rounded-lg px-4 py-2 bg-white transition-all"
+            className="border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
           >
             {label}
           </button>
@@ -86,7 +87,8 @@ export default function MessageAnalyzer() {
         type="button"
         onClick={handleSubmit}
         disabled={loading || message.trim() === ''}
-        className="w-full py-4 sm:py-4.5 text-base font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl mt-6 transition-all shadow-sm hover:shadow-md"
+        className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-3.5 rounded-full font-semibold mt-6 transition-colors"
+        style={{ boxShadow: '0 4px 24px rgba(37,99,235,0.25)' }}
       >
         {loading ? 'Analyzing...' : '🔍 Analyze Message'}
       </button>
@@ -97,12 +99,14 @@ export default function MessageAnalyzer() {
             className="animate-spin border-4 border-blue-600 border-t-transparent rounded-full w-9 h-9"
             aria-hidden
           />
-          <p className="text-gray-500 text-base font-medium">Analyzing with AI...</p>
+          <p className="text-base font-medium" style={{ color: '#6b7280' }}>
+            Analyzing with AI...
+          </p>
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-5 mt-6 text-red-700 text-base leading-relaxed">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-6 text-red-700 text-base leading-relaxed">
           {error}
         </div>
       )}
@@ -111,34 +115,55 @@ export default function MessageAnalyzer() {
         <div className="mt-10 space-y-6">
           <RiskMeter probability={result.scam_probability} />
 
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 shadow-sm">
-            <h3 className="text-black font-semibold text-sm uppercase tracking-wide text-slate-700 mb-3">Why this might be a scam</h3>
-            <p className="text-gray-600 text-base leading-relaxed max-w-prose">{result.reason}</p>
+          <div
+            className="bg-white rounded-2xl border border-gray-100 p-7 transition-all duration-200 hover:shadow-[0_8px_32px_rgba(0,0,0,0.10)]"
+            style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
+          >
+            <h3 className="font-semibold text-sm uppercase tracking-wide mb-3" style={{ color: '#0f0f1a' }}>
+              Why this might be a scam
+            </h3>
+            <p className="text-base leading-relaxed max-w-prose" style={{ color: '#6b7280' }}>
+              {result.reason}
+            </p>
           </div>
 
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 shadow-sm">
-            <h3 className="text-black font-semibold text-sm uppercase tracking-wide text-slate-700 mb-3">Suspicious phrases found</h3>
+          <div
+            className="bg-white rounded-2xl border border-gray-100 p-7 transition-all duration-200 hover:shadow-[0_8px_32px_rgba(0,0,0,0.10)]"
+            style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
+          >
+            <h3 className="font-semibold text-sm uppercase tracking-wide mb-3" style={{ color: '#0f0f1a' }}>
+              Suspicious phrases found
+            </h3>
             {result.suspicious_phrases.length > 0 ? (
               <ul className="space-y-3">
                 {result.suspicious_phrases.map((item, i) => (
                   <li key={i} className="flex flex-col gap-1.5">
-                    <span className="bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-3.5 py-1 text-sm font-medium w-fit">
+                    <span className="bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-3.5 py-1 text-sm font-medium w-fit">
                       {typeof item === 'string' ? item : item.phrase}
                     </span>
                     {typeof item === 'object' && item.reason && (
-                      <span className="text-gray-600 text-sm sm:text-base pl-0.5 leading-relaxed">{item.reason}</span>
+                      <span className="text-sm pl-0.5 leading-relaxed" style={{ color: '#6b7280' }}>
+                        {item.reason}
+                      </span>
                     )}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500 text-base">No specific phrases flagged.</p>
+              <p className="text-base" style={{ color: '#6b7280' }}>
+                No specific phrases flagged.
+              </p>
             )}
           </div>
 
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-7 shadow-sm">
-            <h3 className="text-black font-semibold text-sm uppercase tracking-wide text-slate-700 mb-3">What you should do</h3>
-            <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-5 text-blue-900 text-base leading-relaxed">
+          <div
+            className="bg-white rounded-2xl border border-gray-100 p-7 transition-all duration-200 hover:shadow-[0_8px_32px_rgba(0,0,0,0.10)]"
+            style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
+          >
+            <h3 className="font-semibold text-sm uppercase tracking-wide mb-3" style={{ color: '#0f0f1a' }}>
+              What you should do
+            </h3>
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-base leading-relaxed text-blue-900">
               {result.recommended_action}
             </div>
           </div>

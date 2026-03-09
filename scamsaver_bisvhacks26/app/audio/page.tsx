@@ -2,10 +2,18 @@ import AudioUploader from '@/components/AudioUploader'
 
 export default function AudioPage() {
   return (
-    <div className="min-h-screen bg-slate-50/60">
-      <div className="max-w-2xl mx-auto px-5 sm:px-8 py-12 sm:py-16">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-black tracking-tight mb-3">Analyze a Call Recording</h1>
-        <p className="text-gray-600 text-base sm:text-lg mb-10 sm:mb-12 max-w-xl leading-relaxed">
+    <div
+      className="min-h-screen"
+      style={{ background: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 60%)' }}
+    >
+      <div className="max-w-[720px] mx-auto px-8 py-8">
+        <h1
+          className="font-extrabold mb-2"
+          style={{ fontSize: '2rem', color: '#0f0f1a' }}
+        >
+          Analyze a Call Recording
+        </h1>
+        <p className="text-base mb-8" style={{ color: '#6b7280' }}>
           Upload a voicemail or recording of a suspicious call. Supports MP3, WAV, M4A.
         </p>
         <AudioUploader />
