@@ -4,12 +4,14 @@ import { useState, useRef, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts'
 import RiskMeter from '@/components/RiskMeter'
 
+type SuspiciousPhrase = { phrase: string; reason: string }
+
 type ScamResult = {
   scam_probability: number
   risk_level: string
   scam_type: string
   reason: string
-  suspicious_phrases: string[]
+  suspicious_phrases: (string | SuspiciousPhrase)[]
   recommended_action: string
 }
 
@@ -190,8 +192,51 @@ export default function LiveCallListener() {
       )}
 
       {result != null && (
-        <div className="transition-all duration-500 mt-6">
+        <div className="mt-6 space-y-4 transition-all duration-500">
           <RiskMeter probability={result.scam_probability} />
+
+          <div
+            className="bg-white rounded-2xl border border-gray-100 p-7 transition-all duration-200"
+            style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
+          >
+            <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-900 mb-3">Why this might be a scam</h3>
+            <p className="text-base leading-relaxed" style={{ color: '#6b7280' }}>
+              {result.reason}
+            </p>
+          </div>
+
+          <div
+            className="bg-white rounded-2xl border border-gray-100 p-7 transition-all duration-200"
+            style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
+          >
+            <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-900 mb-3">Suspicious phrases found</h3>
+            {result.suspicious_phrases?.length > 0 ? (
+              <ul className="space-y-3">
+                {result.suspicious_phrases.map((item, i) => (
+                  <li key={i} className="flex flex-col gap-1.5">
+                    <span className="bg-blue-50 text-blue-600 border border-blue-200 rounded-full px-3.5 py-1 text-sm font-medium w-fit">
+                      {typeof item === 'string' ? item : item.phrase}
+                    </span>
+                    {typeof item === 'object' && item.reason && (
+                      <span className="text-sm leading-relaxed" style={{ color: '#6b7280' }}>{item.reason}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-base" style={{ color: '#6b7280' }}>No specific phrases flagged.</p>
+            )}
+          </div>
+
+          <div
+            className="bg-white rounded-2xl border border-gray-100 p-7 transition-all duration-200"
+            style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
+          >
+            <h3 className="font-semibold text-sm uppercase tracking-wide text-gray-900 mb-3">What you should do</h3>
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-base leading-relaxed text-blue-900">
+              {result.recommended_action}
+            </div>
+          </div>
         </div>
       )}
 
